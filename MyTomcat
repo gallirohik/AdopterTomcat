@@ -1,0 +1,135 @@
+package com.Adopter.tomcat;
+
+
+
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.Iterator;
+import java.util.Set;
+
+import javax.management.Attribute;
+import javax.management.AttributeList;
+import javax.management.AttributeNotFoundException;
+import javax.management.InstanceNotFoundException;
+import javax.management.IntrospectionException;
+import javax.management.MBeanAttributeInfo;
+import javax.management.MBeanException;
+import javax.management.MBeanInfo;
+import javax.management.MBeanOperationInfo;
+import javax.management.MBeanServerConnection;
+import javax.management.MalformedObjectNameException;
+import javax.management.ObjectInstance;
+import javax.management.ObjectName;
+import javax.management.ReflectionException;
+import javax.management.openmbean.CompositeData;
+import javax.management.remote.JMXConnector;
+import javax.management.remote.JMXConnectorFactory;
+import javax.management.remote.JMXServiceURL;
+
+public class Tomcat implements Serializable{
+	private static String rmiHost = "192.168.42.38";
+	private static int port = 9000;
+
+	public static void main(String[] args) throws InstanceNotFoundException, AttributeNotFoundException,
+			ReflectionException, MBeanException, MalformedObjectNameException, IntrospectionException{
+		JMXServiceURL url;
+		try {
+			url = new JMXServiceURL("service:jmx:rmi:///jndi/rmi://" + rmiHost + ":" + port + "/jmxrmi");
+
+			JMXConnector jmxc;
+			jmxc = JMXConnectorFactory.connect(url, null);
+			MBeanServerConnection serverConnection = jmxc.getMBeanServerConnection();
+			 Set<ObjectInstance> instances = serverConnection.queryMBeans(null, null);
+			          
+		
+			         Iterator<ObjectInstance> iterator = instances.iterator();
+ 
+		                while (iterator.hasNext()) {
+			 
+		                 ObjectInstance instance = iterator.next();
+		 
+			             System.out.println("MBean Found:");
+			 
+			             System.out.println("Class Name:t" + instance.getClassName());
+			 
+			             System.out.println("Object Name:t" + instance.getObjectName());
+			 
+			             System.out.println("****************************************");
+			 
+			         
+
+			Set<ObjectInstance> names = serverConnection.queryMBeans(new ObjectName("java.lang:type=Memory"), null);
+
+			ObjectInstance oi = names.iterator().next();
+			Object attrValue = serverConnection.getAttribute(oi.getObjectName(), "HeapMemoryUsage");
+			if (!(attrValue instanceof CompositeData)) {
+				System.out.println("attribute value is instanceof [" + attrValue.getClass().getName()
+						+ ", exitting -- must be CompositeData.");
+				return;
+			}
+			System.out.println("Heap Memory usage:");
+			System.out.println("Initial :" + ((CompositeData) attrValue).get("init").toString() + " ");
+			System.out.println("Used :" + ((CompositeData) attrValue).get("used").toString() + " ");
+			System.out.println("Max :" + ((CompositeData) attrValue).get("max").toString() + "\n ");
+
+			attrValue = serverConnection.getAttribute(oi.getObjectName(), "NonHeapMemoryUsage");
+			if (!(attrValue instanceof CompositeData)) {
+				System.out.println("attribute value is instanceof [" + attrValue.getClass().getName()
+						+ ", exitting -- must be CompositeData.");
+				return;
+			}
+			System.out.println("Non Heap Memory usage:");
+			System.out.println("Initial :" + ((CompositeData) attrValue).get("init").toString() + " ");
+			System.out.println("Used :" + ((CompositeData) attrValue).get("used").toString() + " ");
+			System.out.println("Max :" + ((CompositeData) attrValue).get("max").toString() + "\n ");
+        
+			MBeanAttributeInfo[] beans = serverConnection.getMBeanInfo(instance.getObjectName()).getAttributes();
+			String[] arr = new String[beans.length];
+			int count = 0;
+			StringBuilder attributes = new StringBuilder();
+			for(MBeanAttributeInfo bean : beans) {
+				if(!bean.isWritable()) {
+					arr[count++] = bean.getName();
+					attributes.append(bean.getName()).append(", ");
+				}
+			}
+
+			System.out.println("Getting attributes are : " + attributes.toString());
+			AttributeList attributeList = serverConnection.getAttributes(instance.getObjectName(), arr);
+			
+			if(attributeList != null && !attributeList.isEmpty()) {
+				for(int i=0; i < attributeList.size(); i++) {
+					Attribute attribute = (Attribute) attributeList.get(i);
+					System.out.println(attribute.getName() + " --> " + attribute.getValue());
+				}
+			}
+			         }
+		Set<ObjectName> objectNames = serverConnection.queryNames(new ObjectName("Catalina:type=Manager,*"), null);
+			for(ObjectName name : objectNames) {
+				System.out.println(name);
+				MBeanAttributeInfo[] beans = serverConnection.getMBeanInfo(name).getAttributes();
+				String[] arr = new String[beans.length];
+				int count = 0;
+				StringBuilder attributes = new StringBuilder();
+				for(MBeanAttributeInfo bean : beans) {
+					if(!bean.isWritable()) {
+						arr[count++] = bean.getName();
+						attributes.append(bean.getName()).append(", ");
+					}
+				}
+				
+				System.out.println("Getting attributes are : " + attributes.toString());
+				AttributeList attributeList = serverConnection.getAttributes(name, arr);
+				
+				if(attributeList != null && !attributeList.isEmpty()) {
+					for(int i=0; i < attributeList.size(); i++) {
+						Attribute attribute = (Attribute) attributeList.get(i);
+						System.out.println(attribute.getName() + " --> " + attribute.getValue());
+					}
+				}
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+}
